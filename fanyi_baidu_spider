@@ -1,0 +1,57 @@
+# 访问fanyi.baidu.com，由于点击翻译是post请求，所以要捕捉到返回的json数据，
+# 但是只用url和headers不拿访问到，from: en
+# to: zh
+# query: quit
+# transtype: translang
+# simple_means_flag: 3
+# sign: 881764.628565
+# token: e00483f6b30e2700af080c4feb99313d
+# 因为data数据是这样的，携带的东西太多不方便模拟，所以可以利用手机端进行访问
+# query: quit
+# from: en
+# to: zh
+# 中英文互译，要先判断输入是中文还是英文，可以利用响应里面的一个url，有很明显的响应的lan表明是中文还是英文
+
+import requests
+import json
+tran_str=input("请输入想要翻译的内容：")
+start_url="http://fanyi.baidu.com/langdetect"
+tran_url="http://fanyi.baidu.com/basetrans"
+# 这里start＿url并非是一开始百度翻译的地址，而是点击翻译按钮，响应json的网址
+headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1"}
+data={
+    "query": tran_str,}
+r=requests.post(start_url,data=data,headers=headers)
+re_dict = json.loads(r.content.decode())
+from_lan=re_dict["lan"]
+if from_lan=="en":
+    tran_data={
+    "query": tran_str,
+    "from": "en",
+    "to": "zh",
+    }
+    tran_r=requests.post(tran_url,data=tran_data,headers=headers)
+# print(r.content.decode())
+# r_dict=json.loads(r.content.decode())
+    tran_re_dict = json.loads(tran_r.content.decode())
+# 判断一下输入的是英文还是中文
+    ret=tran_re_dict["dict"]["symbols"][0]["parts"]
+    for i in ret:
+        part=i["part"]
+        mean=i["means"]
+        print(part)
+        print(mean)
+else:
+    tran_data = {
+        "query": tran_str,
+        "from": "zh",
+        "to": "en",
+    }
+    tran_r = requests.post(tran_url, data=tran_data, headers=headers)
+    tran_re_dict = json.loads(tran_r.content.decode())
+    ret=tran_re_dict["dict"]["symbols"][0]["parts"][0]["means"]
+    for i in ret:
+        text=i["text"]
+        mean=i["means"]
+        print(text)
+        print(mean)
