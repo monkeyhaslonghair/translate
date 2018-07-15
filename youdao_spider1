@@ -42,7 +42,7 @@ t.asyRequest = function(e) {
 这样就清晰明了了，直接可以写出data，最开始我的headers，只携带user-Agent，爬不出来，于是带上cookie，注意多试几次会发现cookie最后面变的一个地方也是时间戳
 后来还是不行，所以干脆把所有的headers都带上，然后用request中的session来调用post，最后爬出来，代码如下
 
-# 有道翻译需要携带data，用手机端找不到响应网址
+
 import requests
 import random
 import time
