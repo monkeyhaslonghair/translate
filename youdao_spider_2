@@ -1,0 +1,25 @@
+上一篇介绍了有道翻译破解js的爬取方法
+这里介绍有道翻译的另外一种简单爬取方法：pc端复杂，就改用手机端
+首先在手机端的响应里找到有用的数据
+Request URL: http://m.youdao.com/translate #url地址
+User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1
+# headers必须携带的数据
+#下面为data中的数据
+inputtext: quit #很明显这条对应的数据是想要翻译的内容
+type: AUTO # 这是一个定值了
+对应的响应是html页面，所以可以使用xpath进行爬取，要想对网页进行xpath的运用，必须先对其etree一下，代码如下：
+
+import requests
+from lxml import etree
+
+url = "http://m.youdao.com/translate"
+tran_str = input("请输入你要查询的单词：")
+headers = {
+    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1"
+}
+data = {"inputtext": tran_str,"type": "AUTO"}
+response = requests.post(url=url, data=data)
+html_str = response.content.decode()
+resp = etree.HTML(html_str)
+content = resp.xpath("//ul[@id='translateResult']/li/text()")[0]
+print(content)
