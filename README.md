@@ -1,0 +1,101 @@
+#这里分享下有道在线翻译爬取接口的一些心得，首先进入有道翻译网址http://fanyi.youdao.com/
+在响应中找到这个文件translate_o?smartresult=dict&smartresult=rule
+首先想到的是可以通过request.post进行爬取，只需携带好headers,url试过之后发现行不通，所以得携带上data，我们看一下data
+i: sun
+from: AUTO
+to: AUTO
+smartresult: dict
+client: fanyideskweb
+salt: 1531669517447
+sign: bf3585562c52c7cca4b21a5bddbd854d
+doctype: json
+version: 2.1
+keyfrom: fanyi.web
+action: FY_BY_CLICKBUTTION
+typoResult: false
+通过几次post请求对比，这里变动的是i，salt，sign（这是有道的反爬虫手段了），其中i对应的很明显是输入值，salt和sign就不大清楚了，
+对应值无非两种情况：1，后端生成 2，js生成
+由于查看了下network中别的文件，没有找到对应的数据，所以只能是js生成，
+所以在对应的translate_o?smartresult=dict&smartresult=rule文件后面寻找initiator，找到对应的js文件，用站长工具，将其js格式化
+然后复制到sublim或者pycharm找到对应的salt，观察它是如何进行计算加密的
+t.asyRequest = function(e) {
+        var t = e.i, 
+        i = "" + ((new Date).getTime() + parseInt(10 * Math.random(), 10)),#与下面对应
+        o = n.md5("fanyideskweb" + t + i + "ebSeFb%=XZ%T[KZ)c(sy!");#与下面对应
+        r && r.abort(),
+        r = n.ajax({
+            type: "POST",
+            contentType: "application/x-www-form-urlencoded; charset=UTF-8",
+            url: "/bbk/translate_m.do",
+            data: {
+                i: e.i, # 这里i对应的在前面说了，是输入的翻译内容
+                client: "fanyideskweb",
+                salt: i, # i对应的是i = "" + ((new Date).getTime() + parseInt(10 * Math.random(), 10)),意思说是一个字符串，时间戳加上1-10的随机数
+                sign: o,#n.md5("fanyideskweb" + t + i + "ebSeFb%=XZ%T[KZ)c(sy!");将前面两个变量加上两常量，得到的字符串经过md5加密
+                tgt: e.tgt,
+                from: e.from,
+                to: e.to,
+                doctype: "json",
+                version: "3.0",
+                cache: !0
+            },
+这样就清晰明了了，直接可以写出data，最开始我的headers，只携带user-Agent，爬不出来，于是带上cookie，注意多试几次会发现cookie最后面变的一个地方也是时间戳
+后来还是不行，所以干脆把所有的headers都带上，然后用request中的session来调用post，最后爬出来，代码如下
+
+# 有道翻译需要携带data，用手机端找不到响应网址
+import requests
+import random
+import time
+import hashlib
+import json
+start_url="http://fanyi.youdao.com/translate_o?smartresult=dict&smartresult=rule"
+cookie_str="ntes_nnid=5acf82886303004dad3e54f32e908a8d,1528889362727; OUTFOX_SEARCH_USER_ID_NCOO=1904498093.6471665; OUTFOX_SEARCH_USER_ID=-2085509603@10.168.11.29; P_INFO=m15172496130_3@163.com|1530614429|0|other|00&99|hub&1529152718&other#hub&420100#10#0#0|151130&1||15172496130@163.com; DICT_UGC=be3af0da19b5c5e6aa4e17bd8d90b28a|; JSESSIONID=abcTkbX4oCHe29WFt-Dsw; fanyi-ad-id=46607; fanyi-ad-closed=1; ___rl__test__cookies="+str(time.time()*1000)
+
+headers={
+'Accept': 'application/json, text/javascript, */*; q=0.01',
+'Accept-Encoding': 'gzip, deflate',
+'Accept-Language': 'zh-CN,zh;q=0.9',
+'Connection': 'keep-alive',
+'Content-Length': '203',
+'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+'Cookie': cookie_str,
+'Host': 'fanyi.youdao.com',
+'Origin': 'http://fanyi.youdao.com',
+'Referer': 'http://fanyi.youdao.com/',
+'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
+'X-Requested-With': 'XMLHttpRequest',
+}
+
+# headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36"}
+# headers["Cookie"]="ntes_nnid=5acf82886303004dad3e54f32e908a8d,1528889362727; OUTFOX_SEARCH_USER_ID_NCOO=1904498093.6471665; OUTFOX_SEARCH_USER_ID=-2085509603@10.168.11.29; P_INFO=m15172496130_3@163.com|1530614429|0|other|00&99|hub&1529152718&other#hub&420100#10#0#0|151130&1||15172496130@163.com; DICT_UGC=be3af0da19b5c5e6aa4e17bd8d90b28a|; JSESSIONID=abcTkbX4oCHe29WFt-Dsw; fanyi-ad-id=46607; fanyi-ad-closed=1; ___rl__test__cookies="+str(time.time()*1000)
+tran_str=input("请输入需要翻译的单词：")
+i=str(int(time.time()*1000)+random.randint(1,10))
+o_str="fanyideskweb" + tran_str + i + "ebSeFb%=XZ%T[KZ)c(sy!"
+m2 = hashlib.md5()
+m2.update(o_str.encode())
+o= m2.hexdigest()
+# o=hashlib.md5(o_str.encode("utf-8")).hexdigest()
+
+data={
+"i": tran_str,
+"from": "AUTO",
+"to": "AUTO",
+"smartresult": "dict",
+"client": "fanyideskweb",
+"salt": i,
+"sign": o,
+"doctype": "json",
+"version": "2.1",
+"keyfrom": "fanyi.web",
+"action": "FY_BY_REALTIME",
+"typoResult": "false",
+}
+s=requests.session()
+r=s.post(start_url,data=data,headers=headers)
+# ret=r.content.decode()
+ret=r.content.decode()
+ret_dict=json.loads(ret)
+tran_ret=ret_dict["smartResult"]["entries"]
+tran_string="".join(tran_ret)
+print(tran_string)
+
